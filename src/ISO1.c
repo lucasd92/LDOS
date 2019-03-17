@@ -6,6 +6,7 @@
 
 #define STACK_SIZE_B 512
 
+extern void tick_handler(void);
 
 // definiciones y funciones del OS
 #define DIR_RETORNO			0xFFFFFFF9
@@ -37,6 +38,35 @@ void task_return_hook(void * ret_val){
 	}
 }
 
+void temporizar(uint32_t milisegundos){
+	if(milisegundos != 0){
+		tareas[tarea_actual].estado = EN_ESPERA;
+		tareas[tarea_actual].espera = milisegundos;
+	}
+	while(tareas[tarea_actual].estado == EN_ESPERA){
+		__WFI();
+	}
+	return;
+}
+
+void temporizacion(){
+	uint32_t i;
+
+	//resto a todos, menos idle
+	for(i = 1; i < numero_tareas_activas; i++){
+		//Si no está en espera
+		if(tareas[i].espera == 0){
+			tareas[i].estado = ACTIVA;
+		}
+		//Si está en espera
+		if(tareas[i].espera > 0){
+			tareas[i].espera--;
+		}
+	}
+
+	tick_handler();
+}
+
 uint32_t get_next_context(uint32_t current_sp){
 
 	uint32_t next_sp;
@@ -53,7 +83,8 @@ uint32_t get_next_context(uint32_t current_sp){
 
 		//llegué al final y vuelvo a empezar
 		if(i >= numero_tareas_activas){
-			i = 1;
+			i = 0;
+
 		}
 
 		if(tareas[i].estado != EN_ESPERA){
@@ -114,7 +145,7 @@ void init_stack(uint32_t stack[],		//vector de stack
 
 }
 
-extern void tick_handler(void);
+
 
 uint32_t stack0[STACK_SIZE_B/4];
 uint32_t stack1[STACK_SIZE_B/4];
@@ -133,7 +164,7 @@ void * idle(void * args){
 
 void * task1(void * args){
 	while(1){
-		delayInaccurateMs(200);
+		temporizar(200);
 		gpioToggle(LED1);
 	}
 	return NULL;
@@ -141,7 +172,7 @@ void * task1(void * args){
 
 void * task2(void * args){
 	while(1){
-		delayInaccurateMs(500);
+		temporizar(500);
 		gpioToggle(LED2);
 	}
 	return NULL;
@@ -149,7 +180,7 @@ void * task2(void * args){
 
 void * task3(void * args){
 	while(1){
-		delayInaccurateMs(2000);
+		temporizar(2000);
 		gpioToggle(LED3);
 	}
 	return NULL;
@@ -172,7 +203,7 @@ int main(void){
 
 	initHardware();
 
-	tickCallbackSet( (callBackFuncPtr_t) tick_handler,NULL);
+	tickCallbackSet( (callBackFuncPtr_t) temporizacion,NULL);
 	while(1){
 		__WFI();
 	}
