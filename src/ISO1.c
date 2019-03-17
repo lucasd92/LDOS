@@ -5,41 +5,29 @@
 #include "stdint.h"
 
 #define STACK_SIZE_B 512
-#define DIR_RETORNO	0xFFFFFFF9
 
 
-extern void tick_handler(void);
+// definiciones y funciones del OS
+#define DIR_RETORNO			0xFFFFFFF9
+#define NUMERO_MAX_TAREAS	5
 
-uint32_t stack1[STACK_SIZE_B/4];
-uint32_t stack2[STACK_SIZE_B/4];
+enum{ACTIVA,EN_ESPERA};
 
-uint32_t sp1;
-uint32_t sp2;
-
-uint32_t current_task = 0;
+volatile uint32_t tarea_actual = 0xFFFFFFFF;
+volatile uint32_t numero_tareas_activas = 0;
 
 typedef void* (*task_type)(void*);
 
-void * task1(void * args){
-	while(1){
-		__WFI();
-	}
-	return NULL;
-}
+typedef struct{
+	uint32_t	id;
+	uint32_t	sp;
+	uint32_t	estado;
+	uint32_t	espera;
 
-void * task2(void * args){
-	while(1){
-		__WFI();
-	}
-	return NULL;
-}
+}task_t;
 
-static void initHardware(void)
-{
-	Board_Init();
-	SystemCoreClockUpdate();
-	SysTick_Config(SystemCoreClock / 1000);
-}
+task_t tareas[NUMERO_MAX_TAREAS+1];
+
 
 //Alguna tarea retornó valor y no debería (por ahora)
 void task_return_hook(void * ret_val){
@@ -52,35 +40,42 @@ void task_return_hook(void * ret_val){
 uint32_t get_next_context(uint32_t current_sp){
 
 	uint32_t next_sp;
+	uint32_t i;
+	uint32_t idle = 1;
 
-	switch(current_task){
-	case 0:
-		// este es el contexto de main
-		next_sp = sp1;
-		current_task = 1;
-		break;
-	case 1:
-		sp1 = current_sp;
-		next_sp = sp2;
-		current_task = 2;
-		break;
-	case 2:
-		sp2 = current_sp;
-		next_sp = sp1;
-		current_task = 1;
-		break;
-	default:
-		while(1){
-			__WFI();
+	// guardo contexto actual si no entro desde el main
+	if(tarea_actual < NUMERO_MAX_TAREAS +1)
+		tareas[tarea_actual].sp = current_sp;
+	else
+		tarea_actual = 0;	//salto de main a idle
+	//recorro vector de tareas buscando una que no esté en espera
+	for(i = (tarea_actual+1); i != tarea_actual; i++){
+
+		//llegué al final y vuelvo a empezar
+		if(i >= numero_tareas_activas){
+			i = 1;
 		}
 
+		if(tareas[i].estado != EN_ESPERA){
+			next_sp = tareas[i].sp;
+			tarea_actual = i;
+			// al cambiar de contexto, evito entrar en modo idle
+			idle = 0;
+			break;
+		}
+
+	}
+	// no hay tareas activas
+	if(idle == 1){
+		next_sp = tareas[0].sp;
+		tarea_actual = 0;
 	}
 
 	return next_sp;
 }
 void init_stack(uint32_t stack[],		//vector de stack
 				uint32_t stack_size_bytes,	//tamaño del stack
-				uint32_t *sp,			// puntero a stack pointer
+//				uint32_t *sp,			// puntero a stack pointer
 				task_type entry_point,  //nombre de la función
 				void * arg)				// argumentos
 {
@@ -99,15 +94,81 @@ void init_stack(uint32_t stack[],		//vector de stack
 	stack[stack_size_bytes/4-9] = DIR_RETORNO;		// LR
 
 // si bien son 8 registros los que se pushean automáticamente, contemplo los 16.(r4 a r11) + LR
-	*sp = (uint32_t) &(stack[stack_size_bytes/4-17]);
+//	*sp = (uint32_t) &(stack[stack_size_bytes/4-17]);
 
+	//Inicializo la estructura de la tarea
+	tareas[numero_tareas_activas].id = numero_tareas_activas;
+	tareas[numero_tareas_activas].estado = ACTIVA;
+	tareas[numero_tareas_activas].espera = 0;
+	// si bien son 8 registros los que se pushean automáticamente, contemplo los 16.(r4 a r11) + LR
+	tareas[numero_tareas_activas].sp = (uint32_t) &(stack[stack_size_bytes/4-17]);
+
+
+	//Se inicializaron más tareas de las permitidas por NUMERO_MAX_TAREAS
+	if(numero_tareas_activas > NUMERO_MAX_TAREAS){
+		while(1);
+	}
+
+	//Indico que se suma una nueva tarea el scheduler
+	numero_tareas_activas++;
 
 }
 
-int main(void){
+extern void tick_handler(void);
 
-	init_stack( stack1, STACK_SIZE_B, &sp1, task1, (void*) 0x11223344 );
-	init_stack( stack2, STACK_SIZE_B, &sp2, task2, (void*) 0x11223344 );
+uint32_t stack0[STACK_SIZE_B/4];
+uint32_t stack1[STACK_SIZE_B/4];
+uint32_t stack2[STACK_SIZE_B/4];
+uint32_t stack3[STACK_SIZE_B/4];
+
+
+
+void * idle(void * args){
+	while(1){
+		__WFI();
+	}
+	return NULL;
+}
+
+
+void * task1(void * args){
+	while(1){
+		delayInaccurateMs(200);
+		gpioToggle(LED1);
+	}
+	return NULL;
+}
+
+void * task2(void * args){
+	while(1){
+		delayInaccurateMs(500);
+		gpioToggle(LED2);
+	}
+	return NULL;
+}
+
+void * task3(void * args){
+	while(1){
+		delayInaccurateMs(2000);
+		gpioToggle(LED3);
+	}
+	return NULL;
+}
+
+static void initHardware(void)
+{
+	Board_Init();
+	SystemCoreClockUpdate();
+	SysTick_Config(SystemCoreClock / 1000);
+}
+
+
+
+int main(void){
+	init_stack( stack0, STACK_SIZE_B, idle, (void*) 0x11223344 );
+	init_stack( stack1, STACK_SIZE_B, task1, (void*) 0x11223344 );
+	init_stack( stack2, STACK_SIZE_B, task2, (void*) 0x11223344 );
+	init_stack( stack3, STACK_SIZE_B, task3, (void*) 0x11223344 );
 
 	initHardware();
 
