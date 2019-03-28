@@ -24,8 +24,11 @@ static void initHardware(void)
 
 
 
+
 int main(void){
-	init_stack( stack0, STACK_SIZE_B, idle, (void*) 0x11223344 );
+
+	initOS();
+
 	init_stack( stack1, STACK_SIZE_B, task1, (void*) 0x11223344 );
 	init_stack( stack2, STACK_SIZE_B, task2, (void*) 0x11223344 );
 	init_stack( stack3, STACK_SIZE_B, task3, (void*) 0x11223344 );

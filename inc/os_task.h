@@ -35,6 +35,21 @@ void task_return_hook(void * ret_val){
 	}
 }
 
+void initOS(){
+	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+	init_stack( stack0, STACK_SIZE_B, idle, (void*) 0x11223344 );
+}
+
+void schedule(){
+
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+
+	__ISB();
+
+	__DSB();
+
+}
+
 void temporizar(uint32_t milisegundos){
 	if(milisegundos != 0){
 		// si no está detenida (semaforo)
@@ -43,9 +58,11 @@ void temporizar(uint32_t milisegundos){
 		}
 		tareas[tarea_actual].espera = milisegundos;
 	}
-	while(tareas[tarea_actual].estado != ACTIVA){
-		__WFI();
+
+	if(tareas[tarea_actual].estado != ACTIVA){
+		schedule();
 	}
+
 	return;
 }
 
@@ -72,7 +89,7 @@ void temporizacion(){
 		}
 	}
 
-	tick_handler();
+	schedule();
 }
 
 uint32_t get_next_context(uint32_t current_sp){

@@ -16,7 +16,7 @@
 	 * es decir que podemos verlo desde otros modulos (equivalente a extern).
      * Definimos la rutina como global para que sea visible desde otros modulos.
      */
-	.global tick_handler
+	.global PendSV_Handler
 
 	// declaro una funci externa
 	.extern get_next_context
@@ -25,7 +25,7 @@
 
 	.thumb_func
 
-tick_handler:
+PendSV_Handler:
 	push {r4-r11,lr}
 
 	mrs r0,msp			// r0 = msp
