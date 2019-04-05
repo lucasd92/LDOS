@@ -8,6 +8,8 @@
 
 #define USO_SEMAFOROS
 #define NUMERO_MAX_TAREAS		5
+#define NUMERO_MAX_PRIORIDAD	5	//Mayor prioridad implica más tiempo en el scheduler
+#define	IDLE_TASK_PRIORITY		0
 
 #ifdef USO_SEMAFOROS
 	#define NUMERO_MAX_SEMAFOROS	2
@@ -16,15 +18,8 @@
 #define STACK_SIZE_B 512
 
 
-typedef struct{
-	uint32_t valor_actual;
-	uint32_t valor_maximo;
-	uint32_t tarea_detenida;
 
-}semaforo_t;
 
-semaforo_t semaforos[NUMERO_MAX_SEMAFOROS];
-uint32_t numero_semaforos = 0;
 
 #endif
 
