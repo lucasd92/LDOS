@@ -12,7 +12,8 @@
 		typedef struct{
 			uint32_t valor_actual;
 			uint32_t valor_maximo;
-			uint32_t tarea_detenida;
+			//uint32_t tarea_detenida;
+			uint32_t id;
 
 		}semaforo_t;
 		//Vector de semáforos
@@ -29,6 +30,9 @@
 
 		// creo semáforo sin validar datos
 		semaforo_t *crear_semaforo(uint32_t max, uint32_t actual);
+
+		//activa las tareas asociadas si los semáforos se lo permiten
+		void semaforo_activar_tarea();
 
 	#endif
 

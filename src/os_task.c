@@ -12,6 +12,7 @@ uint32_t stack0[STACK_SIZE_B/4];
 
 // definiciones y funciones del OS
 #define DIR_RETORNO			0xFFFFFFF9
+#define	NO_SEM_ASOC			0xFFFFFFFF
 
 
 
@@ -58,14 +59,11 @@ void temporizar(uint32_t milisegundos){
 void temporizacion(){
 	uint32_t i;
 #ifdef USO_SEMAFOROS
-	for(i = 0; i < numero_semaforos; i++){
-		if((semaforos[i].valor_actual > 0) &&							//se entregó el semaforo
-			(tareas[semaforos[i].tarea_detenida].estado == DETENIDA))	// y la tarea está detenida
-		{
-			tareas[semaforos[i].tarea_detenida].estado = ACTIVA;		// la activo
-		}
-	}
+
+	semaforo_activar_tarea();
+
 #endif
+
 	//resto a todos, menos idle
 	for(i = 1; i < numero_tareas_activas; i++){
 		//Si no está en espera
@@ -156,6 +154,7 @@ void init_stack(uint32_t stack[],		//vector de stack
 	tareas[numero_tareas_activas].estado = ACTIVA;
 	tareas[numero_tareas_activas].espera = 0;
 	tareas[numero_tareas_activas].prioridad = prio;
+	tareas[numero_tareas_activas].sem_asoc = NO_SEM_ASOC;
 	// si bien son 8 registros los que se pushean automáticamente, contemplo los 16.(r4 a r11) + LR
 	tareas[numero_tareas_activas].sp = (uint32_t) &(stack[stack_size_bytes/4-17]);
 

@@ -22,6 +22,7 @@ typedef struct{
 	estado_t	estado;
 	uint32_t	espera;
 	uint32_t	prioridad;
+	uint32_t	sem_asoc;
 
 }task_t;
 
