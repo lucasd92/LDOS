@@ -29,16 +29,19 @@
 	}
 
 	uint32_t tomar_semaforo(semaforo_t *sem, uint32_t espera){
+		uint32_t tarea_liberada = 0;
 		if(sem->valor_actual > 0){
 			sem->valor_actual--;
 		}
 		else{
 			tareas[tarea_actual].estado = DETENIDA;
 			tareas[tarea_actual].sem_asoc = sem->id;
-			//sem->tarea_detenida = tarea_actual;
 			temporizar(espera);
+			tarea_liberada = 1;
 		}
 		if(tareas[tarea_actual].espera > 0){
+			if(tarea_liberada == 1)
+				sem->valor_actual--;
 			tareas[tarea_actual].espera = 0;
 			return 1;
 
@@ -68,15 +71,6 @@
 			}
 		}
 
-	/*
-	  	for(i = 0; i < numero_semaforos; i++){
-			if((semaforos[i].valor_actual > 0) &&							//se entregó el semaforo
-				(tareas[semaforos[i].tarea_detenida].estado == DETENIDA))	// y la tarea está detenida
-			{
-				tareas[semaforos[i].tarea_detenida].estado = ACTIVA;		// la activo
-			}
-		}
-	*/
 	}
 
 #endif
